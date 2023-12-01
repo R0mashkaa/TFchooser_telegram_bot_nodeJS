@@ -23,13 +23,13 @@ module.exports = {
 
 				await bot.sendMessage(
 					chatId,
-					`Speaker of today's Technical Friday at 17:30 is ${speakerArray[1].owner} with '${speakerArray[1].theme}' theme.`
+					`Speaker of today's Technical Friday at 17:30 is ${speakerArray[0].owner} with '${speakerArray[0].theme}' theme.`
 				);
 				await bot.sendMessage(
 					chatId,
-					`Next Technical Friday speaker is ${speakerArray[0].owner} with '${
-						speakerArray[0].theme
-					}' theme. On ${dayjs(speakerArray[0].presentationDate).format(
+					`Next Technical Friday speaker is ${speakerArray[1].owner} with '${
+						speakerArray[1].theme
+					}' theme. On ${dayjs(speakerArray[1].presentationDate).format(
 						'DD.MM.YYYY 17:30'
 					)}`
 				);
