@@ -1,0 +1,32 @@
+{
+  "name": "node_telegram",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/app.js",
+    "format": "prettier --write \"src/**/*.js\" ",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.js\" --fix"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "date-fns": "^2.30.0",
+    "dayjs": "^1.11.10",
+    "dotenv": "^16.3.1",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "express": "^4.18.2",
+    "moment": "^2.29.4",
+    "mongoose": "^8.0.2",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "node-telegram-bot-api": "^0.63.0",
+    "node-xlsx": "^0.23.0",
+    "prettier": "^3.1.0",
+    "xlsx": "^0.18.5"
+  }
+}
