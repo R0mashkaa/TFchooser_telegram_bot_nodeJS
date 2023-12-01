@@ -19,4 +19,3 @@ mongoose.connect(process.env.MONGO_URL)
       console.log('Started on port: ', process.env.PORT);
     });
 
-//  botService.showList();
