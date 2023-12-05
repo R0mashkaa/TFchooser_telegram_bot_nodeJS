@@ -12,81 +12,91 @@ require('dotenv').config();
 
 const bot = new Telegraf(process.env.TG_TOKEN);
 
-const userStates = {};
+bot.start(async ctx => {
+	const foundedChat = await chatService.findByChatId(ctx.chat.id);
+	if (foundedChat.length === 0) {
+		await ctx.reply('*🤖 TFChooser bot*', {
+			reply_markup: botConstants.welcomeMenuKeyboard,
+			parse_mode: 'Markdown',
+		});
+		await ctx.deleteMessage(ctx.update.message.message_id);
 
-bot.start((ctx) => {
-    ctx.reply('Welcome to the main menu!', {
-        reply_markup: botConstants.mainMenuKeyboard,
-    });
+		bot.action(botConstants.createChat, async ctx => {
+			const menuId = ctx.update.callback_query.message.message_id;
+			await ctx.deleteMessage(menuId);
+			ctx.reply('TFChooser bot Successfully added to your chat');
+			await chatService.createChat(ctx.chat.id);
+		});
+	} else {
+		await ctx.reply('*🤖 TFChooser main menu*', {
+			reply_markup: botConstants.mainMenuKeyboard,
+			parse_mode: 'Markdown',
+		});
+		await ctx.deleteMessage(ctx.update.message.message_id);
+	}
 });
 
-bot.on('message', async (ctx) => {
-    const chatId = ctx.chat.id;
-    const fileId = ctx.message.document ? ctx.message.document.file_id : null;
-    const selectedText = ctx.message.text;
+bot.action(botConstants.presentationList, async ctx => {
+	const menuId = ctx.update.callback_query.message.message_id;
+	await ctx.deleteMessage(menuId);
+	await botService.showList(ctx);
+});
 
-    await chatService.createChat(chatId);
+bot.action(botConstants.uploadFile, ctx => {
+	ctx.reply('Please send a document (file).').then(sentMessage => {
+		const menuId = ctx.update.callback_query.message.message_id;
+		const promptMessage = sentMessage.message_id;
 
-    switch (selectedText) {
-        case botConstants.example1:
-            ctx.reply('You selected example 1.');
-            break;
+		bot.on('document', async ctx => {
+			await ctx.deleteMessage(menuId);
+			await ctx.deleteMessage(promptMessage);
+			await botService.handleFileUpload(ctx);
+		});
+	});
+});
 
-        case botConstants.example2:
-            ctx.reply('You selected example 2.');
-            break;
+bot.action(botConstants.uploadFileLink, ctx => {
+	ctx.reply('Please send me a file link').then(sentMessage => {
+		const menuId = ctx.update.callback_query.message.message_id;
+		const promptMessage = sentMessage.message_id;
 
-        case botConstants.presentationList:
-            await botService.showList(ctx);
-            break;
+		bot.on('message', async ctx => {
+			await ctx.deleteMessage(menuId);
+			await ctx.deleteMessage(promptMessage);
+			await botService.handleExternalFileLink(ctx);
+		});
+	});
+});
 
-        case botConstants.uploadFile:
-            userStates[chatId] = botConstants.waitForFile;
-            ctx.reply('Please upload a file.');
-            break;
-
-        case botConstants.uploadFileLink:
-            userStates[chatId] = botConstants.waitForLink;
-            ctx.reply('Please send the external link to the Excel file.');
-            break;
-
-        default:
-            handleUserInput(selectedText, chatId, fileId, ctx);
-            break;
-    }
+bot.action(botConstants.close, async ctx => {
+	const messageIdToDelete = ctx.update.callback_query.message.message_id;
+	await ctx.deleteMessage(messageIdToDelete);
 });
 
 bot.launch();
 
-// Handle functions
-async function handleUserInput(selectedText, chatId, fileId, ctx) {
-    if (userStates[chatId] === botConstants.waitForFile && fileId) {
-        await botService.handleFileUpload(ctx, fileId);
-        userStates[chatId] = undefined;
-    } else if (userStates[chatId] === botConstants.waitForLink) {
-        await botService.handleExternalFileLink(ctx);
-        userStates[chatId] = undefined;
-    } else if (selectedText !== botConstants.COMMAND_START) {
-        ctx.reply('Invalid selection. Please choose a valid option.', {
-            reply_markup: botConstants.mainMenuKeyboard,
-        });
-    }
-}
+// Cron Job
 
-// Enable graceful stop
-process.once('SIGINT', () => {
-    bot.stop('SIGINT');
-    schedule.gracefulShutdown()
-        .then(() => process.exit(0));
-});
-process.once('SIGTERM', () => {
-    bot.stop('SIGTERM');
-    schedule.gracefulShutdown()
-        .then(() => process.exit(0));
+cron.schedule(cronConstants.EVERY_DAY_AT_09_00, async () => {
+	console.log('CRON RUN sendPoll');
+	await cronService.sendMorningPoll(bot);
+	console.log('CRON FINISHED sendPoll');
 });
 
 cron.schedule(cronConstants.EVERY_FRIDAY_AT_17_00, async () => {
-    console.log('Cron job started');
-    await cronService.processTechnicalFriday(bot);
-    console.log('Cron job finished');
+	console.log('CRON RUN processTechnicalFriday');
+	await cronService.processTechnicalFriday(bot);
+	console.log('CRON FINISHED processTechnicalFriday');
+});
+
+cron.schedule(cronConstants.EVERY_FRIDAY_AT_17_25, async () => {
+	console.log('CRON RUN sendFridayReminder');
+	await cronService.sendTechnicalFridayReminder(bot);
+	console.log('CRON FINISHED sendFridayReminder');
+});
+
+cron.schedule(cronConstants.EVERY_DAY_AT_18_00, async () => {
+	console.log('CRON RUN sendEndOfDayReminder');
+	await cronService.sendEndOfDayReminder(bot);
+	console.log('CRON FINISHED sendEndOfDayReminder');
 });

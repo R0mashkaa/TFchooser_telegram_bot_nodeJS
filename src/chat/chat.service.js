@@ -11,4 +11,8 @@ module.exports = {
 	findAll: async () => {
 		return ChatModel.find({});
 	},
+
+	findByChatId: async id => {
+		return ChatModel.find({ chatId: id });
+	},
 };

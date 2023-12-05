@@ -1,25 +1,22 @@
 module.exports = {
-	// user states
-	waitForFile: 'waitingForResult',
-	waitForLink: 'waitingForFile',
-
 	// cases
-	example1: 'example 1',
-	example2: 'example 2',
-	presentationList: 'Presentation list',
-	uploadFile: 'Upload excel file',
-	uploadFileLink: 'Sent excel file link',
+	close: 'mainClose',
+	presentationList: 'presentationList',
+	uploadFile: 'uploadFile',
+	uploadFileLink: 'uploadFileLink',
+	createChat: 'createChat',
 
-	COMMAND_START: '/start',
-
+	// keyboard
 	mainMenuKeyboard: {
-		keyboard: [
-			['example 1', 'example 2'],
-			['Presentation list'],
-			['Upload excel file'],
-			['Sent excel file link'],
+		inline_keyboard: [
+			[{ text: '📅 Presentation List', callback_data: 'presentationList' }],
+			[{ text: '📁 Upload Excel File', callback_data: 'uploadFile' }],
+			[{ text: '🌐 Sent Excel File Link', callback_data: 'uploadFileLink' }],
+			[{ text: '❌ Close', callback_data: 'mainClose' }],
 		],
-		resize_keyboard: true,
-		one_time_keyboard: false,
+	},
+
+	welcomeMenuKeyboard: {
+		inline_keyboard: [[{ text: 'Add bot to chat', callback_data: 'createChat' }]],
 	},
 };

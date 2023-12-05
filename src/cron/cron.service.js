@@ -38,4 +38,52 @@ module.exports = {
 			console.error('Error processing Technical Friday:', error);
 		}
 	},
+
+	sendEndOfDayReminder: async bot => {
+		try {
+			const allChats = await chatService.findAll();
+			for (const chat of allChats) {
+				const chatId = chat.chatId;
+				await bot.telegram.sendMessage(
+					chatId,
+					'Hello, its 18:00 PM, please fill your status for today in Excel file'
+				);
+			}
+		} catch (error) {
+			console.error('Failed to send end of day reminder:', error);
+		}
+	},
+
+	sendTechnicalFridayReminder: async bot => {
+		try {
+			const allChats = await chatService.findAll();
+			for (const chat of allChats) {
+				const chatId = chat.chatId;
+				await bot.telegram.sendMessage(
+					chatId,
+					'Technical Friday will start in 5 min. Please join the meeting room.'
+				);
+			}
+		} catch (error) {
+			console.error('Failed to send Friday reminder:', error);
+		}
+	},
+
+	sendMorningPoll: async bot => {
+		const pollOptions = ['WFO', 'WFH', 'Day Off', 'Sick day', 'Other'];
+		try {
+			const allChats = await chatService.findAll();
+			for (const chat of allChats) {
+				const chatId = chat.chatId;
+				await bot.telegram.sendPoll(
+					chatId,
+					'What is your status today?',
+					pollOptions,
+					{ is_anonymous: false }
+				);
+			}
+		} catch (error) {
+			console.error('Failed to send poll:', error);
+		}
+	},
 };
