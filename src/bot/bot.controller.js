@@ -1,4 +1,4 @@
-const TelegramBot = require('node-telegram-bot-api');
+const { Telegraf } = require('telegraf');
 const cron = require('node-cron');
 
 const botService = require('./bot.service');
@@ -10,71 +10,83 @@ const chatService = require('../chat/chat.service');
 
 require('dotenv').config();
 
-const bot = new TelegramBot(process.env.TG_TOKEN, { polling: true });
+const bot = new Telegraf(process.env.TG_TOKEN);
 
 const userStates = {};
 
-cron.schedule(cronConstants.EVERY_FRIDAY_AT_17_00, async () => {
-	console.log('Cron job started');
-	await cronService.processTechnicalFriday(bot);
-	console.log('Cron job finished');
+bot.start((ctx) => {
+    ctx.reply('Welcome to the main menu!', {
+        reply_markup: botConstants.mainMenuKeyboard,
+    });
 });
 
-bot.onText(new RegExp(`^${botConstants.COMMAND_START}$`), msg => {
-	const chatId = msg.chat.id;
-	bot.sendMessage(chatId, 'Welcome to the main menu!', {
-		reply_markup: botConstants.mainMenuKeyboard,
-	});
+bot.on('message', async (ctx) => {
+    const chatId = ctx.chat.id;
+    const fileId = ctx.message.document ? ctx.message.document.file_id : null;
+    const selectedText = ctx.message.text;
+
+    await chatService.createChat(chatId);
+
+    switch (selectedText) {
+        case botConstants.example1:
+            ctx.reply('You selected example 1.');
+            break;
+
+        case botConstants.example2:
+            ctx.reply('You selected example 2.');
+            break;
+
+        case botConstants.presentationList:
+            await botService.showList(ctx);
+            break;
+
+        case botConstants.uploadFile:
+            userStates[chatId] = botConstants.waitForFile;
+            ctx.reply('Please upload a file.');
+            break;
+
+        case botConstants.uploadFileLink:
+            userStates[chatId] = botConstants.waitForLink;
+            ctx.reply('Please send the external link to the Excel file.');
+            break;
+
+        default:
+            handleUserInput(selectedText, chatId, fileId, ctx);
+            break;
+    }
 });
 
-bot.on('message', async msg => {
-	const chatId = msg.chat.id;
-	const fileId = msg.document ? msg.document.file_id : null;
-	const selectedText = msg.text;
-
-	await chatService.createChat(chatId);
-
-	switch (selectedText) {
-		case botConstants.example1:
-			bot.sendMessage(chatId, 'You selected example 1.');
-			break;
-
-		case botConstants.example2:
-			bot.sendMessage(chatId, 'You selected example 2.');
-			break;
-
-		case botConstants.presentationList:
-			await botService.showList(bot, chatId);
-			break;
-
-		case botConstants.uploadFile:
-			userStates[chatId] = botConstants.waitForFile;
-			bot.sendMessage(chatId, 'Please upload a file.');
-			break;
-
-		case botConstants.uploadFileLink:
-			userStates[chatId] = botConstants.waitForLink;
-			bot.sendMessage(chatId, 'Please send the external link to the Excel file.');
-			break;
-
-		default:
-			handleUserInput(selectedText, chatId, fileId, msg);
-			break;
-	}
-});
+bot.launch();
 
 // Handle functions
-
-async function handleUserInput(selectedText, chatId, fileId, msg) {
-	if (userStates[chatId] === botConstants.waitForFile && fileId) {
-		await botService.handleFileUpload(bot, msg, fileId);
-		userStates[chatId] = undefined;
-	} else if (userStates[chatId] === botConstants.waitForLink) {
-		await botService.handleExternalFileLink(bot, msg.text, chatId);
-		userStates[chatId] = undefined;
-	} else if (selectedText !== botConstants.COMMAND_START) {
-		bot.sendMessage(chatId, 'Invalid selection. Please choose a valid option.', {
-			reply_markup: botConstants.mainMenuKeyboard,
-		});
-	}
+async function handleUserInput(selectedText, chatId, fileId, ctx) {
+    if (userStates[chatId] === botConstants.waitForFile && fileId) {
+        await botService.handleFileUpload(ctx, fileId);
+        userStates[chatId] = undefined;
+    } else if (userStates[chatId] === botConstants.waitForLink) {
+        await botService.handleExternalFileLink(ctx);
+        userStates[chatId] = undefined;
+    } else if (selectedText !== botConstants.COMMAND_START) {
+        ctx.reply('Invalid selection. Please choose a valid option.', {
+            reply_markup: botConstants.mainMenuKeyboard,
+        });
+    }
 }
+
+// Enable graceful stop
+process.once('SIGINT', () => {
+    bot.stop('SIGINT');
+    schedule.gracefulShutdown()
+        .then(() => process.exit(0));
+});
+process.once('SIGTERM', () => {
+    bot.stop('SIGTERM');
+    schedule.gracefulShutdown()
+        .then(() => process.exit(0));
+});
+
+cron.schedule(cronConstants.EVERY_FRIDAY_AT_17_00, async () => {
+    console.log('Cron job started');
+    await cronService.processTechnicalFriday(bot);
+    console.log('Cron job finished');
+});
