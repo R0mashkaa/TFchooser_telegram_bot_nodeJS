@@ -16,14 +16,11 @@ module.exports = {
 			const sheet = workbook.Sheets[workbook.SheetNames[0]];
 			const data = await XLSX.utils.sheet_to_json(sheet);
 
-			await Promise.all([
-				tableService.deleteManyAndCreate(data),
-				module.exports.assignRandomFriday(),
-			]);
-
-			ctx.reply('Excel file data has been successfully added to MongoDB.', {
-				reply_markup: botConstants.mainMenuKeyboard,
-			});
+			const usersArray = await module.exports.assignRandomFriday(data);
+			await tableService.deleteManyAndCreate(usersArray),
+				ctx.reply('Excel file data has been successfully added to MongoDB.', {
+					reply_markup: botConstants.mainMenuKeyboard,
+				});
 		} catch (error) {
 			console.error('Error handling file upload:', error);
 			ctx.reply('Failed excel file data adding to MongoDB.', {
@@ -40,28 +37,24 @@ module.exports = {
 			const sheet = XLSX.read(response.data, { type: 'buffer' }).Sheets[
 				XLSX.read(response.data).SheetNames[0]
 			];
-
 			const header = XLSX.utils
 				.sheet_to_json(sheet, { header: 1 })[0]
 				.filter(Boolean);
 			const data = XLSX.utils.sheet_to_json(sheet, { header });
 
-			const usersArray = data
-				.filter(row => row.C)
-				.map(row => ({ theme: row.B, owner: row.C, telegramId: row.D }))
-				.slice(1);
-
-			await Promise.all([
-				tableService.deleteManyAndCreate(usersArray),
-				module.exports.assignRandomFriday(),
-			]);
-
-			ctx.reply(
-				'Excel file data from the external link has been successfully added to MongoDB.',
-				{
-					reply_markup: botConstants.mainMenuKeyboard,
-				}
+			const usersArray = await module.exports.assignRandomFriday(
+				data
+					.filter(row => row.C)
+					.map(row => ({ theme: row.B, owner: row.C, telegramId: row.D }))
+					.slice(1)
 			);
+			await tableService.deleteManyAndCreate(usersArray),
+				ctx.reply(
+					'Excel file data from the external link has been successfully added to MongoDB.',
+					{
+						reply_markup: botConstants.mainMenuKeyboard,
+					}
+				);
 		} catch (error) {
 			console.error('Error handling external file link:', error);
 			ctx.reply('Error handling the external file link.', {
@@ -110,8 +103,7 @@ module.exports = {
 		});
 	},
 
-	assignRandomFriday: async () => {
-		const usersArray = await tableService.findAll();
+	assignRandomFriday: async usersArray => {
 		const fridayDates = [];
 
 		let currentDate = dayjs().startOf('day').day(5);
@@ -129,5 +121,7 @@ module.exports = {
 		usersArray.forEach((user, index) => {
 			user.presentationDate = fridayDates[index].toDate();
 		});
+
+		return usersArray;
 	},
 };
