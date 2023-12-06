@@ -8,6 +8,9 @@ const cronService = require('../cron/cron.service');
 const cronConstants = require('../cron/cron.constants');
 const chatService = require('../chat/chat.service');
 
+let menuId;
+let promptMessage;
+const states = {};
 require('dotenv').config();
 
 const bot = new Telegraf(process.env.TG_TOKEN);
@@ -42,28 +45,38 @@ bot.action(botConstants.presentationList, async ctx => {
 	await botService.showList(ctx);
 });
 
-bot.action(botConstants.uploadFile, ctx => {
+bot.action(botConstants.uploadFile, async ctx => {
 	ctx.reply('Please send a document (file).').then(sentMessage => {
-		const menuId = ctx.update.callback_query.message.message_id;
-		const promptMessage = sentMessage.message_id;
+		promptMessage = sentMessage.message_id;
+		menuId = ctx.update.callback_query.message.message_id;
+
+		setState(ctx.from.id, 'uploadFile');
 
 		bot.on('document', async ctx => {
-			await ctx.deleteMessage(menuId);
-			await ctx.deleteMessage(promptMessage);
-			await botService.handleFileUpload(ctx);
+			if (getState(ctx.from.id) === 'uploadFile') {
+				await botService.handleFileUpload(ctx);
+				await ctx.deleteMessage(menuId);
+				await ctx.deleteMessage(promptMessage);
+				setState(ctx.from.id, null);
+			}
 		});
 	});
 });
 
 bot.action(botConstants.uploadFileLink, ctx => {
 	ctx.reply('Please send me a file link').then(sentMessage => {
-		const menuId = ctx.update.callback_query.message.message_id;
-		const promptMessage = sentMessage.message_id;
+		menuId = ctx.update.callback_query.message.message_id;
+		promptMessage = sentMessage.message_id;
+
+		setState(ctx.from.id, 'uploadFileLink');
 
 		bot.on('message', async ctx => {
-			await ctx.deleteMessage(menuId);
-			await ctx.deleteMessage(promptMessage);
-			await botService.handleExternalFileLink(ctx);
+			if (getState(ctx.from.id) === 'uploadFileLink') {
+				await botService.handleExternalFileLink(ctx);
+				await ctx.deleteMessage(menuId);
+				await ctx.deleteMessage(promptMessage);
+				setState(ctx.from.id, null);
+			}
 		});
 	});
 });
@@ -100,3 +113,13 @@ cron.schedule(cronConstants.EVERY_DAY_AT_18_00, async () => {
 	await cronService.sendEndOfDayReminder(bot);
 	console.log('CRON FINISHED sendEndOfDayReminder');
 });
+
+// State handler
+
+function setState(userId, state) {
+	states[userId] = state;
+}
+
+function getState(userId) {
+	return states[userId];
+}

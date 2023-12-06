@@ -16,13 +16,19 @@ module.exports = {
 			const sheet = workbook.Sheets[workbook.SheetNames[0]];
 			const data = await XLSX.utils.sheet_to_json(sheet);
 
-			await tableService.createMany(await module.exports.assignRandomFriday(data));
+			await Promise.all([
+				tableService.deleteManyAndCreate(data),
+				module.exports.assignRandomFriday(),
+			]);
 
 			ctx.reply('Excel file data has been successfully added to MongoDB.', {
 				reply_markup: botConstants.mainMenuKeyboard,
 			});
 		} catch (error) {
 			console.error('Error handling file upload:', error);
+			ctx.reply('Failed excel file data adding to MongoDB.', {
+				reply_markup: botConstants.mainMenuKeyboard,
+			});
 		}
 	},
 
@@ -40,14 +46,15 @@ module.exports = {
 				.filter(Boolean);
 			const data = XLSX.utils.sheet_to_json(sheet, { header });
 
-			const usersArray = await module.exports.assignRandomFriday(
-				data
-					.filter(row => row.C)
-					.map(row => ({ theme: row.B, owner: row.C, telegramId: row.D }))
-					.slice(1)
-			);
+			const usersArray = data
+				.filter(row => row.C)
+				.map(row => ({ theme: row.B, owner: row.C, telegramId: row.D }))
+				.slice(1);
 
-			await tableService.createMany(usersArray);
+			await Promise.all([
+				tableService.deleteManyAndCreate(usersArray),
+				module.exports.assignRandomFriday(),
+			]);
 
 			ctx.reply(
 				'Excel file data from the external link has been successfully added to MongoDB.',
@@ -57,7 +64,9 @@ module.exports = {
 			);
 		} catch (error) {
 			console.error('Error handling external file link:', error);
-			ctx.reply('Error handling the external file link.');
+			ctx.reply('Error handling the external file link.', {
+				reply_markup: botConstants.mainMenuKeyboard,
+			});
 		}
 	},
 
@@ -101,7 +110,8 @@ module.exports = {
 		});
 	},
 
-	assignRandomFriday: async usersArray => {
+	assignRandomFriday: async () => {
+		const usersArray = await tableService.findAll();
 		const fridayDates = [];
 
 		let currentDate = dayjs().startOf('day').day(5);
@@ -119,7 +129,5 @@ module.exports = {
 		usersArray.forEach((user, index) => {
 			user.presentationDate = fridayDates[index].toDate();
 		});
-
-		return usersArray;
 	},
 };

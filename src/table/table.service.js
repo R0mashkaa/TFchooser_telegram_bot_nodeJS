@@ -5,6 +5,11 @@ module.exports = {
 		await TableModel.insertMany(data);
 	},
 
+	deleteManyAndCreate: async data => {
+		await TableModel.deleteMany({});
+		await TableModel.insertMany(data);
+	},
+
 	findAll: async () => {
 		return await TableModel.find();
 	},
