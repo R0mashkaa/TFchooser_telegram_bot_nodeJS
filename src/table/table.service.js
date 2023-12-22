@@ -5,11 +5,6 @@ module.exports = {
 		await TableModel.insertMany(data);
 	},
 
-	deleteManyAndCreate: async data => {
-		await TableModel.deleteMany({});
-		await TableModel.insertMany(data);
-	},
-
 	findAll: async () => {
 		return await TableModel.find();
 	},
@@ -21,5 +16,18 @@ module.exports = {
 		}
 
 		return result;
+	},
+
+	updateThemeByName: async (user, data) => {
+		return await TableModel.updateOne({ owner: user.owner }, { theme: data });
+	},
+
+	updateFieldByName: async (field, userName, data) => {
+		return await TableModel.updateOne({ owner: userName }, { [field]: data });
+	},
+
+	deleteManyAndCreate: async data => {
+		await TableModel.deleteMany({});
+		await TableModel.insertMany(data);
 	},
 };

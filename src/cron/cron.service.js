@@ -1,4 +1,5 @@
 const dayjs = require('dayjs');
+require('telegraf');
 
 const chatService = require('../chat/chat.service');
 const tableService = require('../table/table.service');
@@ -21,11 +22,11 @@ module.exports = {
 					},
 				});
 
-				await bot.sendMessage(
+				await bot.telegram.sendMessage(
 					chatId,
 					`Speaker of today's Technical Friday at 17:30 is ${speakerArray[0].owner} with '${speakerArray[0].theme}' theme.`
 				);
-				await bot.sendMessage(
+				await bot.telegram.sendMessage(
 					chatId,
 					`Next Technical Friday speaker is ${speakerArray[1].owner} with '${
 						speakerArray[1].theme
