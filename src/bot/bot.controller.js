@@ -1,22 +1,31 @@
-const { Telegraf } = require('telegraf');
+const { Telegraf, Scenes, session } = require('telegraf');
 const cron = require('node-cron');
 
-const botService = require('./bot.service');
-const botKeyboardEnum = require('../utils/botKeyboardsEnum');
 const botActionEnum = require('../utils/botActionsEnum');
+const botKeyboardEnum = require('../utils/botKeyboardsEnum');
 
 const cronService = require('../cron/cron.service');
 const cronConstants = require('../cron/cron.constants');
 const chatService = require('../chat/chat.service');
-
-let menuId;
-let promptMessage;
-let uploadFileState = false;
-let uploadFileLinkState = false;
+const uploadFileScene = require('../scenes/uploadFileScene');
+const uploadFileLinkScene = require('../scenes/uploadFileLinkScene');
+const presentationListScene = require('../scenes//presentationListScene');
+const updateUserThemeScene = require('../scenes/updateUserThemeScene');
+const swapSpeakerScene = require('../scenes/swapSpeakerScene');
 
 require('dotenv').config();
 
 const bot = new Telegraf(process.env.TG_TOKEN);
+const stage = new Scenes.Stage([
+	uploadFileScene,
+	uploadFileLinkScene,
+	presentationListScene,
+	updateUserThemeScene,
+	swapSpeakerScene,
+]);
+
+bot.use(session({ databaseName: 'tf_chooser', collectionName: '/sessions' }));
+bot.use(stage.middleware());
 
 bot.start(async ctx => {
 	const foundedChat = await chatService.findByChatId(ctx.chat.id);
@@ -43,145 +52,27 @@ bot.start(async ctx => {
 });
 
 bot.action(botActionEnum.presentationList, async ctx => {
-	await ctx.deleteMessage(ctx.update.callback_query.message.message_id);
-	const list = await botService.showList();
-	ctx.reply(list, {
-		parse_mode: 'HTML',
-		reply_markup: botKeyboardEnum.MainMenuKeyboard,
-	});
+	await ctx.scene.enter('presentationList');
 });
-
 bot.action(botActionEnum.uploadFile, async ctx => {
-	ctx.reply('Please send a document (file).').then(sentMessage => {
-		promptMessage = sentMessage.message_id;
-		menuId = ctx.update.callback_query.message.message_id;
-		uploadFileState = true;
-
-		bot.on('document', async ctx => {
-			if (uploadFileState) {
-				await botService.handleFileUpload(ctx);
-				Promise.all([
-					await ctx.deleteMessage(menuId),
-					await ctx.deleteMessage(promptMessage),
-				]);
-				uploadFileState = false;
-			}
-		});
-	});
+	await ctx.scene.enter('uploadFile');
 });
-
-bot.action(botActionEnum.uploadFileLink, ctx => {
-	ctx.reply('Please send me a file link').then(sentMessage => {
-		menuId = ctx.update.callback_query.message.message_id;
-		promptMessage = sentMessage.message_id;
-		uploadFileLinkState = true;
-
-		bot.on('message', async ctx => {
-			if (uploadFileLinkState) {
-				await botService.handleExternalFileLink(ctx);
-				Promise.all([
-					await ctx.deleteMessage(menuId),
-					await ctx.deleteMessage(promptMessage),
-				]);
-				uploadFileLinkState = false;
-			}
-		});
-	});
+bot.action(botActionEnum.uploadFileLink, async ctx => {
+	await ctx.scene.enter('uploadFileLink');
 });
-
 bot.action(botActionEnum.updateUser, async ctx => {
-	const usersList = await botService.showList();
-	menuId = ctx.update.callback_query.message.message_id;
-	await ctx.deleteMessage(menuId);
-	ctx.reply(`${usersList}\n<b>Choose the index of the user to update</b>`, {
-		reply_markup: botKeyboardEnum.MainMenuKeyboard,
-		parse_mode: 'HTML',
-	}).then(sentMessage => {
-		let user = {};
-		let updateUserState = false;
-		let findUserForUpdateState = true;
-		promptMessage = sentMessage.message_id;
-
-		bot.on('message', async ctx => {
-			if (findUserForUpdateState) {
-				user = await botService.findUserByIndex(
-					ctx,
-					usersList,
-					botActionEnum.updateUser
-				);
-
-				updateUserState = true;
-				findUserForUpdateState = false;
-			} else if (updateUserState) {
-				await botService.updateUser(ctx, user);
-				Promise.all([
-					ctx.deleteMessage(ctx.message.message_id),
-					ctx.deleteMessage(ctx.message.message_id - 1),
-					ctx.deleteMessage(ctx.message.message_id - 2),
-					ctx.deleteMessage(promptMessage),
-				]);
-
-				findUserForUpdateState = false;
-				updateUserState = false;
-			}
-		});
-	});
+	await ctx.scene.enter('updateUser');
 });
-
 bot.action(botActionEnum.swapSpeaker, async ctx => {
-	const usersList = await botService.showList();
-	await ctx.deleteMessage(ctx.update.callback_query.message.message_id);
-	ctx.reply(`${usersList}\n<b>Choose the first index of the user to change</b>`, {
-		reply_markup: botKeyboardEnum.MainMenuKeyboard,
-		parse_mode: 'HTML',
-	}).then(sentMessage => {
-		let userToChange = {};
-		let selectedUser = {};
-		let swapSpeakerState = false;
-		let findUserForSwapState = true;
-		promptMessage = sentMessage.message_id;
-
-		bot.on('message', async ctx => {
-			if (findUserForSwapState) {
-				userToChange = await botService.findUserByIndex(
-					ctx,
-					usersList,
-					botActionEnum.swapSpeaker
-				);
-
-				findUserForSwapState = false;
-				swapSpeakerState = true;
-			} else if (swapSpeakerState) {
-				selectedUser = await botService.findUserByIndex(
-					ctx,
-					usersList,
-					botActionEnum.swapSpeaker
-				);
-				await botService.changeSpeaker(ctx, selectedUser, userToChange);
-				Promise.all([
-					ctx.deleteMessage(ctx.message.message_id),
-					ctx.deleteMessage(ctx.message.message_id + 1),
-					ctx.deleteMessage(ctx.message.message_id - 1),
-					ctx.deleteMessage(ctx.message.message_id - 2),
-					ctx.deleteMessage(promptMessage),
-				]);
-
-				findUserForUpdateState = false;
-				swapSpeakerState = false;
-			}
-		});
-	});
+	await ctx.scene.enter('swapSpeaker');
 });
-
 bot.action(botActionEnum.close, async ctx => {
-	const messageIdToDelete = ctx.update.callback_query.message.message_id;
-	await ctx.deleteMessage(messageIdToDelete);
+	await ctx.deleteMessage(ctx.update.callback_query.message.message_id);
 });
 
 bot.launch();
 
 // Cron Job
-
 cron.schedule(cronConstants.EVERY_DAY_AT_09_00, async () => {
 	console.log('CRON RUN sendPoll');
 	await cronService.sendMorningPoll(bot);
