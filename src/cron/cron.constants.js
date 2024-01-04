@@ -4,4 +4,5 @@ module.exports = {
 	EVERY_DAY_AT_18_00: '00 18 * * 1-5',
 	EVERY_DAY_AT_09_00: '0 9 * * 1-5',
 	EVERY_MINUTE: '* * * * *',
+	EVERY_FIVE_MIN:'5 * * * *'
 };
