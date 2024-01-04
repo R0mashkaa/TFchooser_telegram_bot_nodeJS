@@ -96,9 +96,3 @@ cron.schedule(cronConstants.EVERY_DAY_AT_18_00, async () => {
 	await cronService.sendEndOfDayReminder(bot);
 	console.log('CRON FINISHED sendEndOfDayReminder');
 });
-
-cron.schedule(cronConstants.EVERY_FIVE_MIN, async () => {
-	console.log('CRON RUN test');
-	console.log('CRON FINISHED test');
-});
-
